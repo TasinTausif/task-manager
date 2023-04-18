@@ -37,7 +37,7 @@ $resultTaskComplete = mysqli_query($connection, $queryTaskComplete);
             padding: 0px 150px 0px 150px;
         }
 
-        #action {
+        #bulkaction {
             width: 150px;
         }
     </style>
@@ -51,6 +51,7 @@ $resultTaskComplete = mysqli_query($connection, $queryTaskComplete);
         </p>
 
         <?php
+
         if (mysqli_num_rows($resultTaskComplete) > 0) {
         ?>
 
@@ -69,21 +70,23 @@ $resultTaskComplete = mysqli_query($connection, $queryTaskComplete);
                 <tbody>
 
                     <?php
+
                     while ($data = mysqli_fetch_assoc($resultTaskComplete)) {
                         $timestamp = strtotime($data['date']);
                         $date = date("jS M, Y", $timestamp);
                     ?>
 
                         <tr>
-                            <td><input class="label-inline" type="checkbox" value="<?php echo $data['id']; ?>"></td>
+                            <td></td>
                             <td><?php echo $data['id']; ?></td>
                             <td><?php echo $data['task']; ?></td>
                             <td><?php echo $date; ?></td>
-                            <td><a href="#">Delete</a></td>
+                            <td><a data-taskid="<?php echo $data['id']; ?>" href="#" class="delete">Delete</a> | <a data-taskid="<?php echo $data['id']; ?>" href="#" class="incomplete">Incomplete</a></td>
                         </tr>
 
                     <?php
                     }
+
                     ?>
 
                 </tbody>
@@ -105,62 +108,69 @@ $resultTaskComplete = mysqli_query($connection, $queryTaskComplete);
 
             <h4>Upcoming Tasks:</h4>
             <table>
-                <thead>
-                    <tr>
-                        <td></td>
-                        <td>Id</td>
-                        <td>Task</td>
-                        <td>Date</td>
-                        <td>Action</td>
-                    </tr>
-                </thead>
-                <tbody>
-
-                    <?php
-                    while ($data = mysqli_fetch_assoc($resultTaskUpcoming)) {
-                        $timestamp = strtotime($data['date']);
-                        $date = date("jS M, Y", $timestamp);
-                    ?>
-
+                <form action="tasks.php" method="POST">
+                    <thead>
                         <tr>
-                            <td><input class="label-inline" type="checkbox" value="<?php echo $data['id']; ?>"></td>
-                            <td><?php echo $data['id']; ?></td>
-                            <td><?php echo $data['task']; ?></td>
-                            <td><?php echo $date; ?></td>
-                            <td><a href="#">Delete</a> | <a href="#">Complete</a></td>
+                            <td></td>
+                            <td>Id</td>
+                            <td>Task</td>
+                            <td>Date</td>
+                            <td>Action</td>
                         </tr>
+                    </thead>
+                    <tbody>
 
-                    <?php
-                    }
-                    mysqli_close($connection);
-                    ?>
+                        <?php
 
-                </tbody>
+                        while ($data = mysqli_fetch_assoc($resultTaskUpcoming)) {
+                            $timestamp = strtotime($data['date']);
+                            $date = date("jS M, Y", $timestamp);
+                        ?>
+
+                            <tr>
+                                <td><input name="taskids[]" class="label-inline" type="checkbox" value="<?php echo $data['id']; ?>"></td>
+                                <td><?php echo $data['id']; ?></td>
+                                <td><?php echo $data['task']; ?></td>
+                                <td><?php echo $date; ?></td>
+                                <td><a data-taskid="<?php echo $data['id']; ?>" href="#" class="delete">Delete</a> | <a data-taskid="<?php echo $data['id']; ?>" href="#" class="complete">Complete</a></td>
+                            </tr>
+
+                        <?php
+                        }
+
+                        mysqli_close($connection);
+                        ?>
+
+                    </tbody>
             </table>
 
-            <select id="action">
+            <select id="bulkaction" name="action">
                 <option value="0">With Selected</option>
-                <option value="del">Delete</option>
-                <option value="complete">Mark as Complete</option>
+                <option value="bulkdelete">Delete</option>
+                <option value="bulkcomplete">Mark as Complete</option>
             </select>
-            <input class="button-primary" type="submit" value="Submit">
+
+            <input class="button-primary" id="bulksubmit" type="submit" value="Submit">
+            </form>
         <?php
         }
+
         ?>
 
         <p>...</p>
 
         <h4>Add Tasks</h4>
-        <form method="post" action="tasks.php">
+        <form method="POST" action="tasks.php">
             <fieldset>
                 <?php
-                $added = $_GET['added'];
+                $added = $_GET['added'] ?? '';
 
                 if ($added) {
                     echo "<p>Task added successfully</p>";
                 }
 
                 ?>
+
                 <label for="task">Task</label>
                 <input type="text" placeholder="Task details" id="task" name="task">
                 <label for="date">Date</label>
@@ -168,10 +178,63 @@ $resultTaskComplete = mysqli_query($connection, $queryTaskComplete);
 
                 <input type="submit" value="Add Task" class="button-primary">
 
-                <input type="hidden" value="add" name="action">
+                <input type="hidden" name="action" value="add">
             </fieldset>
         </form>
     </div>
+
+    <form action="tasks.php" method="POST" id="completeform">
+        <input type="hidden" id="caction" name="action" value="complete">
+        <input type="hidden" id="taskid" name="taskid">
+    </form>
+
+    <form action="tasks.php" method="POST" id="deleteform">
+        <input type="hidden" id="caction" name="action" value="delete">
+        <input type="hidden" id="dtaskid" name="dtaskid">
+    </form>
+
+    <form action="tasks.php" method="POST" id="incompleteform">
+        <input type="hidden" id="caction" name="action" value="incomplete">
+        <input type="hidden" id="itaskid" name="itaskid">
+    </form>
 </body>
 
+<script src="https://code.jquery.com/jquery-3.6.4.slim.min.js"></script>
+<script>
+    ;
+    (function($) {
+        $(document).ready(function() {
+            $(".complete").on('click', function() {
+                var id = $(this).data("taskid");
+                $("#taskid").val(id);
+                $("#completeform").submit();
+            });
+
+            $(".delete").on('click', function() {
+                if (confirm("Are you sure you want to delete this task?")) {
+                    var id = $(this).data("taskid");
+                    $("#dtaskid").val(id);
+                    $("#deleteform").submit();
+                }
+            });
+
+            $(".incomplete").on('click', function() {
+                var id = $(this).data("taskid");
+                $("#itaskid").val(id);
+                $("#incompleteform").submit();
+            });
+
+            $("#bulksubmit").on('click', function() {
+                if ($("#bulkaction").val() == "bulkdelete") {
+                    if (!confirm("Are you sure to delete this tasks?")) {
+                        return false;
+                    }
+                }
+            });
+        });
+    })(jQuery);
+</script>
+
 </html>
+
+// start from 9

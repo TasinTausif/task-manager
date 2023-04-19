@@ -236,5 +236,3 @@ $resultTaskComplete = mysqli_query($connection, $queryTaskComplete);
 </script>
 
 </html>
-
-// start from 9
